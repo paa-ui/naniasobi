@@ -67,12 +67,14 @@
       margin-bottom: 12px;
     }
     .btn-sm {
-      padding: 4px 10px;
-      font-size: 0.8rem;
-      border: 1px solid #ccc;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border: 1px solid #c7d2fe;
       background: #fff;
+      color: var(--primary);
       border-radius: 6px;
       cursor: pointer;
+      font-weight: bold;
     }
     .btn-primary {
       width: 100%;
@@ -104,7 +106,7 @@
       margin: 10px 0;
     }
     .hidden {
-      display: none;
+      display: none !important;
     }
     .map-link {
       display: inline-block;
@@ -113,6 +115,16 @@
       text-decoration: none;
       font-weight: bold;
     }
+    .error-box {
+      background-color: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -120,82 +132,105 @@
 <div class="container">
   <h1>🎲 おでかけ＆グルメルーレット</h1>
 
-  <div id="loading">スプレッドシートからデータを取得中...</div>
+  <div id="status-msg" style="text-align: center; padding: 20px; color: #4b5563;">
+    ⏳ スプレッドシートからデータを取得中...
+  </div>
+
+  <div id="error-container" class="error-box hidden"></div>
 
   <div id="app" class="hidden">
     <!-- カテゴリー選択 -->
     <div>
       <span class="section-title">1. カテゴリーを選ぶ</span>
       <div class="btn-group-sm">
-        <button class="btn-sm" onclick="selectAllCategories(true)">全選択</button>
-        <button class="btn-sm" onclick="selectAllCategories(false)">全解除</button>
+        <button type="button" class="btn-sm" onclick="selectAllCategories(true)">全選択</button>
+        <button type="button" class="btn-sm" onclick="selectAllCategories(false)">全解除</button>
       </div>
       <div id="categoryContainer" class="category-group"></div>
     </div>
 
-    <button class="btn-primary" onclick="spinRoulette()">ルーレットを回す！ 🎰</button>
+    <button type="button" class="btn-primary" onclick="spinRoulette()">ルーレットを回す！ 🎰</button>
 
     <!-- 結果表示画面 -->
     <div id="resultBox" class="result-box hidden">
       <div>本日の決定はこちら！</div>
       <div id="resultTitle" class="result-name">---</div>
       <div id="resultMeta" style="color: #6b7280; font-size: 0.9rem;"></div>
-      <a id="mapLink" class="map-link" href="#" target="_blank">Googleマップで近くを探す 📍</a>
+      <a id="mapLink" class="map-link" href="#" target="_blank" rel="noopener">Googleマップで近くを探す 📍</a>
     </div>
   </div>
 </div>
 
 <script>
-  // ★ ご自身のGASのURLが設定されているか確認してください
+  // ⚠️【最重要】ここにご自身の「GAS（ウェブアプリ）URL」を貼り付けてください！
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGhGXvn-tvcBW0osTJvc8-4AmZ-C6hEsF49HYHN_b7RxOaVURyM-CR1xcmHmywU89dtg/exec";
 
   let allData = [];
 
-  // GASからデータ取得
   async function fetchData() {
+    const statusEl = document.getElementById('status-msg');
+    const errorEl = document.getElementById('error-container');
+
+    // URLが未設定の場合のチェック
+    if (!GAS_API_URL || GAS_API_URL.includes("ここにデプロイしたURLを貼り付け") || GAS_API_URL.includes("YOUR_SCRIPT_ID")) {
+      statusEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+      errorEl.innerHTML = "🚨 <strong>GASのURLが貼り付けられていません！</strong><br>コードの118行目あたりにある <code>const GAS_API_URL = \"...\";</code> の中に、デプロイしたGASのWebアプリURLを貼り付けてください。";
+      return;
+    }
+
     try {
       const res = await fetch(GAS_API_URL);
-      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(`HTTPエラー（ステータス: ${res.status}）`);
+      }
+      const rawData = await res.json();
       
-      if (!data || data.length <= 1) {
-        document.getElementById('loading').innerText = "スプレッドシートにデータが見つかりませんでした。";
+      let rows = Array.isArray(rawData) ? rawData : (rawData.data || rawData.result);
+      
+      if (!rows || !Array.isArray(rows) || rows.length <= 1) {
+        statusEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.innerHTML = "⚠️ <strong>スプレッドシートのデータが空です。</strong><br>スプレッドシートにデータが入力されているか確認してください。";
         return;
       }
 
-      // 1行目（見出し）を除外
-      const rows = data.slice(1);
+      // 見出し(1行目)を除外
+      const contentRows = rows.slice(1);
       
-      allData = rows.map(r => {
-        // 列の位置に合わせてデータをマッピング（A列:0, B列:1, C列:2, D列:3, E列:4）
+      allData = contentRows.map(r => {
+        if (!Array.isArray(r)) return null;
         return {
           name: r[0] ? String(r[0]).trim() : "",
-          time: r[1] ? String(r[1]).trim() : "指定なし",
-          active: r[2] ? String(r[2]).trim() : "指定なし",
-          budget: r[3] ? String(r[3]).trim() : "指定なし",
+          time: r[1] ? String(r[1]).trim() : "",
+          active: r[2] ? String(r[2]).trim() : "",
+          budget: r[3] ? String(r[3]).trim() : "",
           category: r[4] ? String(r[4]).trim() : "その他"
         };
-      }).filter(item => item.name !== ""); // 名前が空の行を除外
+      }).filter(item => item && item.name !== "");
 
-      initCategoryFilter();
-      document.getElementById('loading').classList.add('hidden');
+      if (allData.length === 0) {
+        statusEl.classList.add('hidden');
+        errorEl.classList.remove('hidden');
+        errorEl.innerHTML = "⚠️ <strong>有効なデータが見つかりませんでした。</strong><br>スプレッドシートのA列（名称）に文字が入っているか確認してください。";
+        return;
+      }
+
+      statusEl.classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
+      initCategoryFilter();
+
     } catch (e) {
-      console.error(e);
-      document.getElementById('loading').innerText = "データの取得に失敗しました。GASのURLや権限（全員）を確認してください。";
+      statusEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+      errorEl.innerHTML = `🚨 <strong>データの取得に失敗しました：</strong><br>${e.message}<br><br>【考えられる原因】<br>1. GASのデプロイで「アクセスできるユーザー」が「全員」になっていない<br>2. 貼り付けたURLが間違っている`;
     }
   }
 
-  // カテゴリーチェックボックスの自動生成
   function initCategoryFilter() {
-    // データから重複を除いたカテゴリーリストを作成
     const categories = [...new Set(allData.map(d => d.category))].filter(Boolean);
     const container = document.getElementById('categoryContainer');
     container.innerHTML = '';
-
-    if (categories.length === 0) {
-      container.innerHTML = '<span style="color:red; font-size:0.8rem;">※カテゴリーが取得できませんでした。スプレッドシートのE列を確認してください。</span>';
-      return;
-    }
 
     categories.forEach(cat => {
       const label = document.createElement('label');
@@ -210,7 +245,6 @@
     checkboxes.forEach(cb => cb.checked = status);
   }
 
-  // ルーレット処理
   function spinRoulette() {
     const selectedBoxes = document.querySelectorAll('#categoryContainer input[type="checkbox"]:checked');
     const selectedCats = Array.from(selectedBoxes).map(cb => cb.value);
@@ -223,7 +257,7 @@
     const filtered = allData.filter(item => selectedCats.includes(item.category));
 
     if (filtered.length === 0) {
-      alert("該当する項目がありませんでした。");
+      alert("選択したカテゴリーに該当するデータがありません。");
       return;
     }
 
@@ -234,7 +268,6 @@
 
     resultBox.classList.remove('hidden');
 
-    // シャッフル演出
     let count = 0;
     const interval = setInterval(() => {
       const randomItem = filtered[Math.floor(Math.random() * filtered.length)];
@@ -243,14 +276,15 @@
       
       if (count > 15) {
         clearInterval(interval);
-        // 最終決定
         const finalItem = filtered[Math.floor(Math.random() * filtered.length)];
-        resultTitle.innerText = finalItem.name;
+        resultTitle.innerText = `🎯 ${finalItem.name}`;
         resultMeta.innerText = `[${finalItem.category}] 予算:${finalItem.budget} / 時間:${finalItem.time}`;
         mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalItem.name)}`;
       }
     }, 100);
   }
 
-  fetchData();
+  window.addEventListener('DOMContentLoaded', fetchData);
 </script>
+</body>
+</html>
