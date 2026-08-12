@@ -141,7 +141,7 @@
   <div id="app" class="hidden">
     <!-- カテゴリー選択 -->
     <div>
-      <span class="section-title">1. カテゴリーを選ぶ</span>
+      <span class="section-title">1. カテゴリー（気分）を選ぶ</span>
       <div class="btn-group-sm">
         <button type="button" class="btn-sm" onclick="selectAllCategories(true)">全選択</button>
         <button type="button" class="btn-sm" onclick="selectAllCategories(false)">全解除</button>
@@ -162,7 +162,7 @@
 </div>
 
 <script>
-  // ⚠️【最重要】ここにご自身の「GAS（ウェブアプリ）URL」を貼り付けてください！
+  // ⚠️【注意】ご自身のGAS（ウェブアプリ）URLが入っているか確認してください
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGhGXvn-tvcBW0osTJvc8-4AmZ-C6hEsF49HYHN_b7RxOaVURyM-CR1xcmHmywU89dtg/exec";
 
   let allData = [];
@@ -171,50 +171,29 @@
     const statusEl = document.getElementById('status-msg');
     const errorEl = document.getElementById('error-container');
 
-    // URLが未設定の場合のチェック
-    if (!GAS_API_URL || GAS_API_URL.includes("ここにデプロイしたURLを貼り付け") || GAS_API_URL.includes("YOUR_SCRIPT_ID")) {
-      statusEl.classList.add('hidden');
-      errorEl.classList.remove('hidden');
-      errorEl.innerHTML = "🚨 <strong>GASのURLが貼り付けられていません！</strong><br>コードの118行目あたりにある <code>const GAS_API_URL = \"...\";</code> の中に、デプロイしたGASのWebアプリURLを貼り付けてください。";
-      return;
-    }
-
     try {
       const res = await fetch(GAS_API_URL);
-      if (!res.ok) {
-        throw new Error(`HTTPエラー（ステータス: ${res.status}）`);
-      }
+      if (!res.ok) throw new Error(`HTTPエラー（ステータス: ${res.status}）`);
+
       const rawData = await res.json();
       
-      let rows = Array.isArray(rawData) ? rawData : (rawData.data || rawData.result);
-      
-      if (!rows || !Array.isArray(rows) || rows.length <= 1) {
+      if (!Array.isArray(rawData) || rawData.length === 0) {
         statusEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
-        errorEl.innerHTML = "⚠️ <strong>スプレッドシートのデータが空です。</strong><br>スプレッドシートにデータが入力されているか確認してください。";
+        errorEl.innerHTML = "⚠️ データが空です。";
         return;
       }
 
-      // 見出し(1行目)を除外
-      const contentRows = rows.slice(1);
-      
-      allData = contentRows.map(r => {
-        if (!Array.isArray(r)) return null;
+      // GASのJSON構造（name, time, move, budget, category等）に合わせて整形
+      allData = rawData.map(item => {
         return {
-          name: r[0] ? String(r[0]).trim() : "",
-          time: r[1] ? String(r[1]).trim() : "",
-          active: r[2] ? String(r[2]).trim() : "",
-          budget: r[3] ? String(r[3]).trim() : "",
-          category: r[4] ? String(r[4]).trim() : "その他"
+          name: item.name || item["名称"] || item.title || "",
+          time: item.time || item["時間"] || "指定なし",
+          budget: item.budget || item["予算"] || "指定なし",
+          // categoryがあれば使い、無ければ move（リラックス/アクティブ）をカテゴリーとして利用
+          category: item.category || item.move || item["カテゴリー"] || "その他"
         };
-      }).filter(item => item && item.name !== "");
-
-      if (allData.length === 0) {
-        statusEl.classList.add('hidden');
-        errorEl.classList.remove('hidden');
-        errorEl.innerHTML = "⚠️ <strong>有効なデータが見つかりませんでした。</strong><br>スプレッドシートのA列（名称）に文字が入っているか確認してください。";
-        return;
-      }
+      }).filter(item => item.name !== "");
 
       statusEl.classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
@@ -223,11 +202,12 @@
     } catch (e) {
       statusEl.classList.add('hidden');
       errorEl.classList.remove('hidden');
-      errorEl.innerHTML = `🚨 <strong>データの取得に失敗しました：</strong><br>${e.message}<br><br>【考えられる原因】<br>1. GASのデプロイで「アクセスできるユーザー」が「全員」になっていない<br>2. 貼り付けたURLが間違っている`;
+      errorEl.innerHTML = `🚨 <strong>データの取得に失敗しました：</strong><br>${e.message}`;
     }
   }
 
   function initCategoryFilter() {
+    // 重複を除いたカテゴリー一覧を作成
     const categories = [...new Set(allData.map(d => d.category))].filter(Boolean);
     const container = document.getElementById('categoryContainer');
     container.innerHTML = '';
