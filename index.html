@@ -37,56 +37,47 @@
     }
     .section-title {
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       display: block;
     }
     .category-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 20px;
+      gap: 10px;
+      margin-bottom: 24px;
     }
     .chip {
       display: inline-flex;
       align-items: center;
-      padding: 6px 12px;
+      padding: 8px 16px;
       border-radius: 20px;
+      background: #f3f4f6;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.95rem;
+      user-select: none;
+      border: 1px solid #d1d5db;
+      transition: all 0.2s ease;
+    }
+    .chip:has(input:checked) {
       background: #eef2ff;
       color: var(--primary);
-      cursor: pointer;
-      font-size: 0.9rem;
-      user-select: none;
-      border: 1px solid #c7d2fe;
+      border-color: #818cf8;
+      font-weight: bold;
     }
     .chip input {
-      margin-right: 6px;
-    }
-    .btn-group-sm {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .btn-sm {
-      padding: 6px 12px;
-      font-size: 0.85rem;
-      border: 1px solid #c7d2fe;
-      background: #fff;
-      color: var(--primary);
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
+      margin-right: 8px;
     }
     .btn-primary {
       width: 100%;
       background: var(--primary);
       color: white;
-      padding: 12px;
+      padding: 14px;
       border: none;
       border-radius: 8px;
       font-weight: bold;
-      font-size: 1rem;
+      font-size: 1.1rem;
       cursor: pointer;
-      margin-top: 10px;
     }
     .btn-primary:hover {
       background: var(--primary-hover);
@@ -103,7 +94,7 @@
       font-size: 1.8rem;
       font-weight: bold;
       color: var(--primary);
-      margin: 10px 0;
+      margin: 12px 0;
     }
     .hidden {
       display: none !important;
@@ -142,10 +133,6 @@
     <!-- カテゴリー選択 -->
     <div>
       <span class="section-title">1. カテゴリー（気分）を選ぶ</span>
-      <div class="btn-group-sm">
-        <button type="button" class="btn-sm" onclick="selectAllCategories(true)">全選択</button>
-        <button type="button" class="btn-sm" onclick="selectAllCategories(false)">全解除</button>
-      </div>
       <div id="categoryContainer" class="category-group"></div>
     </div>
 
@@ -162,7 +149,6 @@
 </div>
 
 <script>
-  // ⚠️【注意】ご自身のGAS（ウェブアプリ）URLが入っているか確認してください
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGhGXvn-tvcBW0osTJvc8-4AmZ-C6hEsF49HYHN_b7RxOaVURyM-CR1xcmHmywU89dtg/exec";
 
   let allData = [];
@@ -184,16 +170,25 @@
         return;
       }
 
-      // GASのJSON構造（name, time, move, budget, category等）に合わせて整形
-      allData = rawData.map(item => {
-        return {
+      // 配列形式（2次元配列）とオブジェクト形式（JSON）の両方に対応
+      if (Array.isArray(rawData[0])) {
+        // スプレッドシートそのままの2次元配列の場合
+        const rows = rawData.slice(1);
+        allData = rows.map(r => ({
+          name: r[0] || "",
+          time: r[1] || "指定なし",
+          category: r[2] || "その他",
+          budget: r[3] || "指定なし"
+        })).filter(r => r.name !== "");
+      } else {
+        // キー（オブジェクト）形式の場合
+        allData = rawData.map(item => ({
           name: item.name || item["名称"] || item.title || "",
           time: item.time || item["時間"] || "指定なし",
           budget: item.budget || item["予算"] || "指定なし",
-          // categoryがあれば使い、無ければ move（リラックス/アクティブ）をカテゴリーとして利用
-          category: item.category || item.move || item["カテゴリー"] || "その他"
-        };
-      }).filter(item => item.name !== "");
+          category: item.category || item.move || item["カテゴリー"] || item["気分"] || "その他"
+        })).filter(item => item.name !== "");
+      }
 
       statusEl.classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
@@ -207,34 +202,34 @@
   }
 
   function initCategoryFilter() {
-    // 重複を除いたカテゴリー一覧を作成
-    const categories = [...new Set(allData.map(d => d.category))].filter(Boolean);
+    // 重複のないカテゴリー一覧を取得
+    const rawCategories = [...new Set(allData.map(d => d.category))].filter(Boolean);
+    
+    // 「指定なし」を先頭に追加
+    const categories = ["指定なし", ...rawCategories];
+    
     const container = document.getElementById('categoryContainer');
     container.innerHTML = '';
 
-    categories.forEach(cat => {
+    categories.forEach((cat, index) => {
       const label = document.createElement('label');
       label.className = 'chip';
-      label.innerHTML = `<input type="checkbox" value="${cat}" checked> ${cat}`;
+      // デフォルトで「指定なし」（index: 0）を選択状態にする
+      const isChecked = index === 0 ? 'checked' : '';
+      label.innerHTML = `<input type="radio" name="categorySelect" value="${cat}" ${isChecked}> ${cat}`;
       container.appendChild(label);
     });
   }
 
-  function selectAllCategories(status) {
-    const checkboxes = document.querySelectorAll('#categoryContainer input[type="checkbox"]');
-    checkboxes.forEach(cb => cb.checked = status);
-  }
-
   function spinRoulette() {
-    const selectedBoxes = document.querySelectorAll('#categoryContainer input[type="checkbox"]:checked');
-    const selectedCats = Array.from(selectedBoxes).map(cb => cb.value);
-    
-    if (selectedCats.length === 0) {
-      alert("カテゴリーを1つ以上選んでください！");
-      return;
-    }
+    const selectedRadio = document.querySelector('input[name="categorySelect"]:checked');
+    const selectedCat = selectedRadio ? selectedRadio.value : "指定なし";
 
-    const filtered = allData.filter(item => selectedCats.includes(item.category));
+    // 「指定なし」の場合は全データ、それ以外は選ばれたカテゴリーで絞り込み
+    let filtered = allData;
+    if (selectedCat !== "指定なし") {
+      filtered = allData.filter(item => item.category === selectedCat);
+    }
 
     if (filtered.length === 0) {
       alert("選択したカテゴリーに該当するデータがありません。");
