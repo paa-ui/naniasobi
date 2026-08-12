@@ -146,7 +146,7 @@
 </div>
 
 <script>
-  // ★ ここにご自身のGAS（ウェブアプリ）URLを入力してください
+  // ★ ご自身のGASのURLが設定されているか確認してください
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGhGXvn-tvcBW0osTJvc8-4AmZ-C6hEsF49HYHN_b7RxOaVURyM-CR1xcmHmywU89dtg/exec";
 
   let allData = [];
@@ -157,30 +157,45 @@
       const res = await fetch(GAS_API_URL);
       const data = await res.json();
       
-      // ヘッダー除外 (1行目が見出しの場合)
+      if (!data || data.length <= 1) {
+        document.getElementById('loading').innerText = "スプレッドシートにデータが見つかりませんでした。";
+        return;
+      }
+
+      // 1行目（見出し）を除外
       const rows = data.slice(1);
       
-      allData = rows.map(r => ({
-        name: r[0],
-        time: r[1],
-        active: r[2],
-        budget: r[3],
-        category: r[4] || "その他"
-      })).filter(item => item.name);
+      allData = rows.map(r => {
+        // 列の位置に合わせてデータをマッピング（A列:0, B列:1, C列:2, D列:3, E列:4）
+        return {
+          name: r[0] ? String(r[0]).trim() : "",
+          time: r[1] ? String(r[1]).trim() : "指定なし",
+          active: r[2] ? String(r[2]).trim() : "指定なし",
+          budget: r[3] ? String(r[3]).trim() : "指定なし",
+          category: r[4] ? String(r[4]).trim() : "その他"
+        };
+      }).filter(item => item.name !== ""); // 名前が空の行を除外
 
       initCategoryFilter();
       document.getElementById('loading').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
     } catch (e) {
-      document.getElementById('loading').innerText = "データの取得に失敗しました。URLや設定を確認してください。";
+      console.error(e);
+      document.getElementById('loading').innerText = "データの取得に失敗しました。GASのURLや権限（全員）を確認してください。";
     }
   }
 
   // カテゴリーチェックボックスの自動生成
   function initCategoryFilter() {
-    const categories = [...new Set(allData.map(d => d.category))];
+    // データから重複を除いたカテゴリーリストを作成
+    const categories = [...new Set(allData.map(d => d.category))].filter(Boolean);
     const container = document.getElementById('categoryContainer');
     container.innerHTML = '';
+
+    if (categories.length === 0) {
+      container.innerHTML = '<span style="color:red; font-size:0.8rem;">※カテゴリーが取得できませんでした。スプレッドシートのE列を確認してください。</span>';
+      return;
+    }
 
     categories.forEach(cat => {
       const label = document.createElement('label');
@@ -191,13 +206,14 @@
   }
 
   function selectAllCategories(status) {
-    const checkboxes = document.querySelectorAll('#categoryContainer input');
+    const checkboxes = document.querySelectorAll('#categoryContainer input[type="checkbox"]');
     checkboxes.forEach(cb => cb.checked = status);
   }
 
   // ルーレット処理
   function spinRoulette() {
-    const selectedCats = Array.from(document.querySelectorAll('#categoryContainer input:checked')).map(cb => cb.value);
+    const selectedBoxes = document.querySelectorAll('#categoryContainer input[type="checkbox"]:checked');
+    const selectedCats = Array.from(selectedBoxes).map(cb => cb.value);
     
     if (selectedCats.length === 0) {
       alert("カテゴリーを1つ以上選んでください！");
@@ -238,6 +254,3 @@
 
   fetchData();
 </script>
-
-</body>
-</html>
