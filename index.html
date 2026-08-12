@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>今日なにする？決定ナビ</title>
+  <title>わくわくルーレッツ🎯</title>
   <style>
     :root {
       --primary: #FF6B6B;
@@ -40,7 +40,7 @@
 
     h1 {
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       color: var(--primary);
       margin-top: 0;
     }
@@ -161,7 +161,7 @@
 <body>
 
 <div class="container">
-  <h1>🎉 今日なにする？決定ナビ</h1>
+  <h1>わくわくルーレッツ🎯</h1>
 
   <!-- STEP 1: 質問回答 -->
   <div id="step-1" class="step active">
@@ -169,29 +169,30 @@
     
     <div id="form-content" style="display: none;">
       <div class="question-group">
-        <label>1. 今日の気分は？</label>
-        <select id="q-mood">
+        <label>1. 遊ぶ時間は？</label>
+        <select id="q-time">
           <option value="all">指定なし</option>
-          <option value="indoor">まったりインドア</option>
-          <option value="outdoor">アクティブアウトドア</option>
+          <option value="allday">1日中</option>
+          <option value="day">昼</option>
+          <option value="night">夜</option>
         </select>
       </div>
 
       <div class="question-group">
-        <label>2. 予算は？</label>
+        <label>2. 動き方は？</label>
+        <select id="q-move">
+          <option value="all">指定なし</option>
+          <option value="active">体を動かす</option>
+          <option value="relax">まったり</option>
+        </select>
+      </div>
+
+      <div class="question-group">
+        <label>3. 予算は？</label>
         <select id="q-budget">
           <option value="all">指定なし</option>
-          <option value="free">ほぼ無料・低予算</option>
-          <option value="normal">一般的な遊び（〜3,000円）</option>
-        </select>
-      </div>
-
-      <div class="question-group">
-        <label>3. お腹の空き具合は？</label>
-        <select id="q-food">
-          <option value="all">指定なし</option>
-          <option value="eat">ガッツリ食べたい・カフェ</option>
-          <option value="play">遊ぶメイン（食事以外）</option>
+          <option value="low">低予算</option>
+          <option value="mid">～1万以内</option>
         </select>
       </div>
 
@@ -239,14 +240,14 @@
   });
 
   function goToStep2() {
-    const mood = document.getElementById('q-mood').value;
+    const time = document.getElementById('q-time').value;
+    const move = document.getElementById('q-move').value;
     const budget = document.getElementById('q-budget').value;
-    const food = document.getElementById('q-food').value;
 
     const filtered = activities.filter(act => {
-      if (mood !== 'all' && act.mood !== mood && act.mood !== 'all') return false;
+      if (time !== 'all' && act.time !== time && act.time !== 'all') return false;
+      if (move !== 'all' && act.move !== move && act.move !== 'all') return false;
       if (budget !== 'all' && act.budget !== budget && act.budget !== 'all') return false;
-      if (food !== 'all' && act.food !== food && act.food !== 'all') return false;
       return true;
     });
 
