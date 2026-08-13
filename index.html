@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>おでかけ＆グルメ選べるルーレット</title>
+  <title>何遊ぶ？選べるルーレット</title>
   <style>
     :root {
       --primary: #4f46e5;
@@ -17,7 +17,7 @@
       background-color: var(--bg);
       color: var(--text);
       margin: 0;
-      padding: 20px;
+      padding: 16px;
       display: flex;
       justify-content: center;
     }
@@ -25,39 +25,69 @@
       max-width: 600px;
       width: 100%;
       background: var(--card);
-      padding: 24px;
+      padding: 20px;
       border-radius: 16px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       text-align: center;
-      margin-bottom: 20px;
+      margin-top: 0;
+      margin-bottom: 16px;
       color: var(--primary);
     }
-    .section-title {
-      font-weight: bold;
-      margin-bottom: 12px;
-      display: block;
+    
+    /* タブ切り替え */
+    .tab-group {
+      display: flex;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 20px;
     }
-    .category-group {
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      background: none;
+      border: none;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* 絞り込みフォーム */
+    .filter-section {
+      margin-bottom: 16px;
+    }
+    .filter-label {
+      font-weight: bold;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      display: block;
+      color: #374151;
+    }
+    .chip-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 24px;
+      gap: 6px;
     }
     .chip {
       display: inline-flex;
       align-items: center;
-      padding: 8px 16px;
+      padding: 6px 12px;
       border-radius: 20px;
       background: #f3f4f6;
       color: var(--text);
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       user-select: none;
       border: 1px solid #d1d5db;
-      transition: all 0.2s ease;
     }
     .chip:has(input:checked) {
       background: #eef2ff;
@@ -66,8 +96,9 @@
       font-weight: bold;
     }
     .chip input {
-      margin-right: 8px;
+      display: none;
     }
+
     .btn-primary {
       width: 100%;
       background: var(--primary);
@@ -78,34 +109,36 @@
       font-weight: bold;
       font-size: 1.1rem;
       cursor: pointer;
+      margin-top: 10px;
     }
     .btn-primary:hover {
       background: var(--primary-hover);
     }
+
+    /* 結果表示 */
     .result-box {
       text-align: center;
-      margin-top: 24px;
+      margin-top: 20px;
       padding: 20px;
       border: 2px dashed var(--primary);
       border-radius: 12px;
       background: #f8fafc;
     }
     .result-name {
-      font-size: 1.8rem;
+      font-size: 1.6rem;
       font-weight: bold;
       color: var(--primary);
-      margin: 12px 0;
-    }
-    .hidden {
-      display: none !important;
+      margin: 10px 0;
     }
     .map-link {
       display: inline-block;
-      margin-top: 12px;
+      margin-top: 10px;
       color: #059669;
       text-decoration: none;
       font-weight: bold;
+      font-size: 0.95rem;
     }
+    .hidden { display: none !important; }
     .error-box {
       background-color: #fef2f2;
       border: 1px solid #fca5a5;
@@ -114,14 +147,13 @@
       border-radius: 8px;
       margin-bottom: 16px;
       font-size: 0.9rem;
-      line-height: 1.6;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>🎲 おでかけ＆グルメルーレット</h1>
+  <h1>🎲 何遊ぶ？選べるルーレット</h1>
 
   <div id="status-msg" style="text-align: center; padding: 20px; color: #4b5563;">
     ⏳ スプレッドシートからデータを取得中...
@@ -130,19 +162,40 @@
   <div id="error-container" class="error-box hidden"></div>
 
   <div id="app" class="hidden">
-    <!-- カテゴリー選択 -->
-    <div>
-      <span class="section-title">1. カテゴリー（気分）を選ぶ</span>
-      <div id="categoryContainer" class="category-group"></div>
+    <!-- モード切り替えタブ -->
+    <div class="tab-group">
+      <button type="button" class="tab-btn active" onclick="switchTab('play')">🎯 おでかけ</button>
+      <button type="button" class="tab-btn" onclick="switchTab('gourmet')">🍔 ご飯決定</button>
+    </div>
+
+    <!-- 絞り込み質問 -->
+    <div class="filter-section">
+      <span class="filter-label">1. 時間帯</span>
+      <div id="timeFilter" class="chip-group"></div>
+    </div>
+
+    <div class="filter-section">
+      <span class="filter-label">2. アクティブ度</span>
+      <div id="activeFilter" class="chip-group"></div>
+    </div>
+
+    <div class="filter-section">
+      <span class="filter-label">3. 予算</span>
+      <div id="budgetFilter" class="chip-group"></div>
+    </div>
+
+    <div class="filter-section">
+      <span class="filter-label">4. ジャンル（カテゴリー）</span>
+      <div id="categoryFilter" class="chip-group"></div>
     </div>
 
     <button type="button" class="btn-primary" onclick="spinRoulette()">ルーレットを回す！ 🎰</button>
 
-    <!-- 結果表示画面 -->
+    <!-- 結果画面 -->
     <div id="resultBox" class="result-box hidden">
       <div>本日の決定はこちら！</div>
       <div id="resultTitle" class="result-name">---</div>
-      <div id="resultMeta" style="color: #6b7280; font-size: 0.9rem;"></div>
+      <div id="resultMeta" style="color: #6b7280; font-size: 0.85rem;"></div>
       <a id="mapLink" class="map-link" href="#" target="_blank" rel="noopener">Googleマップで近くを探す 📍</a>
     </div>
   </div>
@@ -151,7 +204,11 @@
 <script>
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGhGXvn-tvcBW0osTJvc8-4AmZ-C6hEsF49HYHN_b7RxOaVURyM-CR1xcmHmywU89dtg/exec";
 
+  // ご飯系のカテゴリーリスト定義
+  const GOURMET_CATEGORIES = ["グルメ", "カフェ巡り", "食べ歩き"];
+
   let allData = [];
+  let currentTab = "play"; // 'play' または 'gourmet'
 
   async function fetchData() {
     const statusEl = document.getElementById('status-msg');
@@ -159,80 +216,112 @@
 
     try {
       const res = await fetch(GAS_API_URL);
-      if (!res.ok) throw new Error(`HTTPエラー（ステータス: ${res.status}）`);
+      if (!res.ok) throw new Error(`HTTPエラー: ${res.status}`);
 
       const rawData = await res.json();
       
-      if (!Array.isArray(rawData) || rawData.length === 0) {
-        statusEl.classList.add('hidden');
-        errorEl.classList.remove('hidden');
-        errorEl.innerHTML = "⚠️ データが空です。";
-        return;
-      }
-
-      // 配列形式（2次元配列）とオブジェクト形式（JSON）の両方に対応
+      // オブジェクト配列 or 2次元配列に対応
       if (Array.isArray(rawData[0])) {
-        // スプレッドシートそのままの2次元配列の場合
         const rows = rawData.slice(1);
         allData = rows.map(r => ({
           name: r[0] || "",
           time: r[1] || "指定なし",
-          category: r[2] || "その他",
-          budget: r[3] || "指定なし"
+          active: r[2] || "指定なし",
+          budget: r[3] || "指定なし",
+          category: r[4] || "その他"
         })).filter(r => r.name !== "");
       } else {
-        // キー（オブジェクト）形式の場合
         allData = rawData.map(item => ({
-          name: item.name || item["名称"] || item.title || "",
-          time: item.time || item["時間"] || "指定なし",
+          name: item.name || item["名称"] || "",
+          time: item.time || item["時間帯"] || item["時間"] || "指定なし",
+          active: item.move || item.active || item["アクティブ度"] || "指定なし",
           budget: item.budget || item["予算"] || "指定なし",
-          category: item.category || item.move || item["カテゴリー"] || item["気分"] || "その他"
+          category: item.category || item["カテゴリー"] || "その他"
         })).filter(item => item.name !== "");
       }
 
       statusEl.classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
-      initCategoryFilter();
+      
+      initFilters();
 
     } catch (e) {
       statusEl.classList.add('hidden');
       errorEl.classList.remove('hidden');
-      errorEl.innerHTML = `🚨 <strong>データの取得に失敗しました：</strong><br>${e.message}`;
+      errorEl.innerHTML = `🚨 データの取得に失敗しました：<br>${e.message}`;
     }
   }
 
-  function initCategoryFilter() {
-    // 重複のないカテゴリー一覧を取得
-    const rawCategories = [...new Set(allData.map(d => d.category))].filter(Boolean);
+  function switchTab(tabName) {
+    currentTab = tabName;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
     
-    // 「指定なし」を先頭に追加
-    const categories = ["指定なし", ...rawCategories];
-    
-    const container = document.getElementById('categoryContainer');
-    container.innerHTML = '';
+    // タブ変更に合わせてカテゴリー一覧を再構築
+    renderCategoryFilter();
+  }
 
-    categories.forEach((cat, index) => {
+  function initFilters() {
+    // 1. 時間帯
+    renderRadioOptions('timeFilter', 'timeSelect', ["指定なし", "昼", "夜", "全日", "終日"]);
+    // 2. アクティブ度
+    renderRadioOptions('activeFilter', 'activeSelect', ["指定なし", "リラックス", "アクティブ"]);
+    // 3. 予算
+    renderRadioOptions('budgetFilter', 'budgetSelect', ["指定なし", "低", "中", "高"]);
+    
+    // 4. カテゴリー
+    renderCategoryFilter();
+  }
+
+  function renderRadioOptions(containerId, name, options) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    options.forEach((opt, idx) => {
       const label = document.createElement('label');
       label.className = 'chip';
-      // デフォルトで「指定なし」（index: 0）を選択状態にする
-      const isChecked = index === 0 ? 'checked' : '';
-      label.innerHTML = `<input type="radio" name="categorySelect" value="${cat}" ${isChecked}> ${cat}`;
+      const checked = idx === 0 ? 'checked' : '';
+      label.innerHTML = `<input type="radio" name="${name}" value="${opt}" ${checked}> ${opt}`;
       container.appendChild(label);
     });
   }
 
-  function spinRoulette() {
-    const selectedRadio = document.querySelector('input[name="categorySelect"]:checked');
-    const selectedCat = selectedRadio ? selectedRadio.value : "指定なし";
-
-    // 「指定なし」の場合は全データ、それ以外は選ばれたカテゴリーで絞り込み
-    let filtered = allData;
-    if (selectedCat !== "指定なし") {
-      filtered = allData.filter(item => item.category === selectedCat);
+  function renderCategoryFilter() {
+    // 現在のタブに応じてカテゴリーをフィルタリング
+    let availableCategories = [];
+    if (currentTab === "gourmet") {
+      availableCategories = GOURMET_CATEGORIES;
+    } else {
+      availableCategories = [...new Set(allData.map(d => d.category))]
+        .filter(cat => !GOURMET_CATEGORIES.includes(cat) && cat !== "");
     }
 
+    renderRadioOptions('categoryFilter', 'categorySelect', ["指定なし", ...availableCategories]);
+  }
+
+  function spinRoulette() {
+    const timeVal = document.querySelector('input[name="timeSelect"]:checked').value;
+    const activeVal = document.querySelector('input[name="activeSelect"]:checked').value;
+    const budgetVal = document.querySelector('input[name="budgetSelect"]:checked').value;
+    const categoryVal = document.querySelector('input[name="categorySelect"]:checked').value;
+
+    // フィルタリング処理
+    let filtered = allData.filter(item => {
+      // タブごとの大枠判定
+      const isGourmetCategory = GOURMET_CATEGORIES.includes(item.category);
+      if (currentTab === "gourmet" && !isGourmetCategory) return false;
+      if (currentTab === "play" && isGourmetCategory) return false;
+
+      // 各条件チェック
+      if (timeVal !== "指定なし" && !item.time.includes(timeVal) && !item.time.includes("全日")) return false;
+      if (activeVal !== "指定なし" && item.active !== activeVal) return false;
+      if (budgetVal !== "指定なし" && item.budget !== budgetVal) return false;
+      if (categoryVal !== "指定なし" && item.category !== categoryVal) return false;
+
+      return true;
+    });
+
     if (filtered.length === 0) {
-      alert("選択したカテゴリーに該当するデータがありません。");
+      alert("条件に当てはまる項目が見つかりませんでした。条件をゆるめて試してみてください！");
       return;
     }
 
@@ -253,7 +342,7 @@
         clearInterval(interval);
         const finalItem = filtered[Math.floor(Math.random() * filtered.length)];
         resultTitle.innerText = `🎯 ${finalItem.name}`;
-        resultMeta.innerText = `[${finalItem.category}] 予算:${finalItem.budget} / 時間:${finalItem.time}`;
+        resultMeta.innerText = `[${finalItem.category}] 時間:${finalItem.time} / 気分:${finalItem.active} / 予算:${finalItem.budget}`;
         mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalItem.name)}`;
       }
     }, 100);
