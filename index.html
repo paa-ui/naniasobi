@@ -174,18 +174,19 @@
       <div id="timeFilter" class="chip-group"></div>
     </div>
 
-    <div class="filter-section">
+    <!-- ご飯決定タブでは非表示にするセクション -->
+    <div id="activeSection" class="filter-section">
       <span class="filter-label">2. アクティブ度</span>
       <div id="activeFilter" class="chip-group"></div>
     </div>
 
     <div class="filter-section">
-      <span class="filter-label">3. 予算</span>
+      <span class="filter-label" id="budgetLabel">3. 予算</span>
       <div id="budgetFilter" class="chip-group"></div>
     </div>
 
     <div class="filter-section">
-      <span class="filter-label">4. ジャンル（カテゴリー）</span>
+      <span class="filter-label" id="categoryLabel">4. ジャンル（カテゴリー）</span>
       <div id="categoryFilter" class="chip-group"></div>
     </div>
 
@@ -257,17 +258,31 @@
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
+    const activeSection = document.getElementById('activeSection');
+    const budgetLabel = document.getElementById('budgetLabel');
+    const categoryLabel = document.getElementById('categoryLabel');
+
+    if (currentTab === "gourmet") {
+      activeSection.classList.add('hidden'); // アクティブ度を非表示
+      budgetLabel.innerText = "2. 予算";
+      categoryLabel.innerText = "3. ジャンル（カテゴリー）";
+    } else {
+      activeSection.classList.remove('hidden'); // アクティブ度を表示
+      budgetLabel.innerText = "3. 予算";
+      categoryLabel.innerText = "4. ジャンル（カテゴリー）";
+    }
+
     // タブ変更に合わせてカテゴリー一覧を再構築
     renderCategoryFilter();
   }
 
   function initFilters() {
-    // 1. 時間帯
-    renderRadioOptions('timeFilter', 'timeSelect', ["指定なし", "昼", "夜", "全日", "終日"]);
+    // 1. 時間帯（「全日」削除）
+    renderRadioOptions('timeFilter', 'timeSelect', ["指定なし", "昼", "夜", "終日"]);
     // 2. アクティブ度
     renderRadioOptions('activeFilter', 'activeSelect', ["指定なし", "リラックス", "アクティブ"]);
-    // 3. 予算
-    renderRadioOptions('budgetFilter', 'budgetSelect', ["指定なし", "低", "中", "高"]);
+    // 3. 予算（具体表記に変更）
+    renderRadioOptions('budgetFilter', 'budgetSelect', ["指定なし", "無料〜1,000円", "1,000円〜3,000円", "3,000円〜10,000円", "10,000円〜"]);
     
     // 4. カテゴリー
     renderCategoryFilter();
@@ -286,7 +301,6 @@
   }
 
   function renderCategoryFilter() {
-    // 現在のタブに応じてカテゴリーをフィルタリング
     let availableCategories = [];
     if (currentTab === "gourmet") {
       availableCategories = GOURMET_CATEGORIES;
@@ -300,7 +314,7 @@
 
   function spinRoulette() {
     const timeVal = document.querySelector('input[name="timeSelect"]:checked').value;
-    const activeVal = document.querySelector('input[name="activeSelect"]:checked').value;
+    const activeVal = document.querySelector('input[name="activeSelect"]:checked') ? document.querySelector('input[name="activeSelect"]:checked').value : "指定なし";
     const budgetVal = document.querySelector('input[name="budgetSelect"]:checked').value;
     const categoryVal = document.querySelector('input[name="categorySelect"]:checked').value;
 
@@ -311,10 +325,24 @@
       if (currentTab === "gourmet" && !isGourmetCategory) return false;
       if (currentTab === "play" && isGourmetCategory) return false;
 
-      // 各条件チェック
-      if (timeVal !== "指定なし" && !item.time.includes(timeVal) && !item.time.includes("全日")) return false;
-      if (activeVal !== "指定なし" && item.active !== activeVal) return false;
+      // 時間帯チェック（「昼」または「夜」選択時、「終日」も含める）
+      if (timeVal !== "指定なし") {
+        if (timeVal === "昼" || timeVal === "夜") {
+          if (item.time !== timeVal && item.time !== "終日") return false;
+        } else {
+          if (item.time !== timeVal) return false;
+        }
+      }
+
+      // アクティブ度チェック（ご飯決めタブでは無視される）
+      if (currentTab === "play" && activeVal !== "指定なし" && item.active !== activeVal) {
+        return false;
+      }
+
+      // 予算チェック
       if (budgetVal !== "指定なし" && item.budget !== budgetVal) return false;
+
+      // カテゴリーチェック
       if (categoryVal !== "指定なし" && item.category !== categoryVal) return false;
 
       return true;
@@ -342,7 +370,12 @@
         clearInterval(interval);
         const finalItem = filtered[Math.floor(Math.random() * filtered.length)];
         resultTitle.innerText = `🎯 ${finalItem.name}`;
-        resultMeta.innerText = `[${finalItem.category}] 時間:${finalItem.time} / 気分:${finalItem.active} / 予算:${finalItem.budget}`;
+        
+        let metaText = `[${finalItem.category}] 時間:${finalItem.time} / 予算:${finalItem.budget}`;
+        if (currentTab === "play") {
+          metaText += ` / 気分:${finalItem.active}`;
+        }
+        resultMeta.innerText = metaText;
         mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalItem.name)}`;
       }
     }, 100);
